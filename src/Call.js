@@ -3,6 +3,7 @@ import io from "socket.io-client";
 import SimplePeer from "simple-peer";
 
 const socket = io("https://webrtcback-9144f1cb0f93.herokuapp.com"); // Replace with your server URL
+// const socket = io("http://localhost:5000"); // Replace with your server URL
 
 function Call() {
   const [localStream, setLocalStream] = useState(null);
@@ -12,14 +13,15 @@ function Call() {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-  useEffect(() => {
+    useEffect(() => {
+      console.log('socket worked')
     // Get user media (audio only for this example)
     socket.emit("join");
     socket.on("user-connected", (data) => {
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true, video: true })
+      .getUserMedia({ audio: true, video: false})
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);

@@ -2,44 +2,41 @@ import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import SimplePeer from "simple-peer";
 
-const socket = io("https://webrtcback-9144f1cb0f93.herokuapp.com"); // Replace with your server URL
-// const socket = io("http://localhost:5000"); // Replace with your server URL
+const socket = io("http://localhost:5000"); // Replace with your server URL
 
 function Call() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [peer, setPeer] = useState(null);
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-    useEffect(() => {
-      console.log('socket worked')
+  useEffect(() => {
+    console.log('socket worked');
     // Get user media (audio only for this example)
     socket.emit("join");
     socket.on("user-connected", (data) => {
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true, video: false})
+      .getUserMedia({ audio: true, video: false })
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
-        console.log("local stream", localStream);
         localVideoRef.current.srcObject = stream;
 
-        // // Listen for signaling messages from server
+        // Listen for signaling messages from server
         socket.on("message", (message) => {
           if (message.type === "offer" && !peerRef.current) {
             console.log("offer", message);
             const newPeer = new SimplePeer({
               initiator: false,
               trickle: false,
+              stream: stream, // Add local stream to the peer
             });
-            // setPeer(newPeer);
             peerRef.current = newPeer;
 
-            //     // Set remote description and answer
+            // Set remote description and answer
             newPeer.signal(message.sdp);
             console.log("signal peered");
             newPeer.on("signal", (answer) => {
@@ -52,15 +49,16 @@ function Call() {
               console.log("answer emitted");
             });
 
-            //     // Handle incoming stream
+            // Handle incoming stream
             newPeer.on("stream", (remoteStream) => {
+              console.log('remote stream received');
               setRemoteStream(remoteStream);
               remoteVideoRef.current.srcObject = remoteStream;
             });
-          } else if (message.type === "answer" && peerRef) {
+          } else if (message.type === "answer" && peerRef.current) {
             console.log("answer", message);
             peerRef.current.signal(message.sdp);
-          } else if (message.type === "candidate" && peerRef) {
+          } else if (message.type === "candidate" && peerRef.current) {
             peerRef.current.signal(message.candidate);
           }
         });
@@ -70,23 +68,29 @@ function Call() {
     // Clean up on component unmount
     // return () => {
     //   socket.disconnect();
-    //   if (peer) peer.destroy();
+    //   if (peerRef.current) peerRef.current.destroy();
     //   if (localStream) localStream.getTracks().forEach(track => track.stop());
     // };
   }, []);
 
+  useEffect(() => {
+    if (localStream) {
+      console.log("local stream updated", localStream);
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteStream) {
+      console.log("remote stream updated", remoteStream);
+    }
+  }, [remoteStream]);
+
   // Function to start a call
   const startCall = () => {
     console.log("start calling");
-    const newPeer = new SimplePeer({ initiator: true, trickle: false });
-    console.log("newpeeer", newPeer);
-    setPeer(newPeer);
+    const newPeer = new SimplePeer({ initiator: true, trickle: false, stream: localStream });
+    console.log("newpeer", newPeer);
     peerRef.current = newPeer;
-
-    if (!peer) {
-      console.log("peer not defined");
-    }
-    console.log("this is peeer", peer, "peerref :", peerRef.current);
 
     // Send signaling message for offer
     newPeer.on("signal", (offer) => {
@@ -99,15 +103,28 @@ function Call() {
 
     // Handle incoming stream
     newPeer.on("stream", (remoteStream) => {
+      console.log('remote stream received');
       setRemoteStream(remoteStream);
       remoteVideoRef.current.srcObject = remoteStream;
     });
 
-    // Add local stream to peer connection
-    if (localStream) {
-      newPeer.addStream(localStream);
-      localVideoRef.current.srcObject = localStream;
-    }
+    // Handle ICE candidate messages
+    newPeer.on('iceCandidate', candidate => {
+      socket.emit('message', {
+        type: 'candidate',
+        candidate: candidate
+      });
+    });
+
+    // Handle connection state changes
+    newPeer.on('connect', () => {
+      console.log('Connected to remote peer');
+    });
+
+    newPeer.on('close', () => {
+      console.log('Connection closed');
+    //   setPeer(null);
+    });
   };
 
   return (

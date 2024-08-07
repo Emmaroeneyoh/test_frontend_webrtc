@@ -23,7 +23,7 @@ function Call() {
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
-        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.srcObject = stream
 
         // Listen for signaling messages from serve
         socket.on("message", (message) => {

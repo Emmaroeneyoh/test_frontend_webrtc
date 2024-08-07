@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import SimplePeer from "simple-peer";
 
-const socket = io("http://localhost:5000"); // Replace with your server URL
+const socket = io("https://webrtcback-a2ddffdeea05.herokuapp.com"); // Replace with your server URL
 
 function Call() {
   const [localStream, setLocalStream] = useState(null);
@@ -12,7 +12,7 @@ function Call() {
   const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    console.log('socket worked');
+    console.log("socket worked");
     // Get user media (audio only for this example)
     socket.emit("join");
     socket.on("user-connected", (data) => {
@@ -44,21 +44,24 @@ function Call() {
               socket.emit("message", {
                 type: "answer",
                 sdp: answer,
-                friendroomId: "yourRoomId",
+                friendroomId: "123456",
               });
               console.log("answer emitted");
             });
 
             // Handle incoming stream
             newPeer.on("stream", (remoteStream) => {
-              console.log('remote stream received');
+              console.log("remote stream received", remoteStream);
+              console.log("remote", remoteStream);
               setRemoteStream(remoteStream);
+
               remoteVideoRef.current.srcObject = remoteStream;
             });
           } else if (message.type === "answer" && peerRef.current) {
             console.log("answer", message);
             peerRef.current.signal(message.sdp);
           } else if (message.type === "candidate" && peerRef.current) {
+            console.log("candidate", message);
             peerRef.current.signal(message.candidate);
           }
         });
@@ -88,7 +91,11 @@ function Call() {
   // Function to start a call
   const startCall = () => {
     console.log("start calling");
-    const newPeer = new SimplePeer({ initiator: true, trickle: false, stream: localStream });
+    const newPeer = new SimplePeer({
+      initiator: true,
+      trickle: false,
+      stream: localStream,
+    });
     console.log("newpeer", newPeer);
     peerRef.current = newPeer;
 
@@ -97,33 +104,34 @@ function Call() {
       socket.emit("message", {
         type: "offer",
         sdp: offer,
-        friendroomId: "yourRoomId",
+        friendroomId: "123456",
       });
     });
 
-    // Handle incoming stream
+    // // Handle incoming stream
     newPeer.on("stream", (remoteStream) => {
-      console.log('remote stream received');
+      console.log("remote stream received 1");
+      console.log("remote stream received 2");
       setRemoteStream(remoteStream);
       remoteVideoRef.current.srcObject = remoteStream;
     });
 
     // Handle ICE candidate messages
-    newPeer.on('iceCandidate', candidate => {
-      socket.emit('message', {
-        type: 'candidate',
-        candidate: candidate
+    newPeer.on("iceCandidate", (candidate) => {
+      socket.emit("message", {
+        type: "candidate",
+        candidate: candidate,
       });
     });
 
     // Handle connection state changes
-    newPeer.on('connect', () => {
-      console.log('Connected to remote peer');
+    newPeer.on("connect", () => {
+      console.log("Connected to remote peer");
     });
 
-    newPeer.on('close', () => {
-      console.log('Connection closed');
-    //   setPeer(null);
+    newPeer.on("close", () => {
+      console.log("Connection closed");
+      //   setPeer(null);
     });
   };
 

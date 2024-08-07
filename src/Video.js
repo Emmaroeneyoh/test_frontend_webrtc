@@ -1,105 +1,156 @@
-import React, { useEffect } from "react";
-import { connect, createLocalVideoTrack } from "twilio-video";
+import React, { useState, useEffect, useRef } from "react";
+import io from "socket.io-client";
+import SimplePeer from "simple-peer";
 
-function VideoCall({ identity, roomName }) {
+const socket = io("https://webrtcback-a2ddffdeea05.herokuapp.com"); // Replace with your server URL
+
+function Videocall() {
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const peerRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
   useEffect(() => {
-    const startVideoCall = async () => {
-      try {
-        console.log('Requesting local video track...');
+    console.log("socket worked");
+    // Get user media (audio only for this example)
+    socket.emit("join");
+    socket.on("user-connected", (data) => {
+      console.log("user joined", data);
+    });
+    navigator.mediaDevices
+      .getUserMedia({ audio: true, video: true })
+      .then((stream) => {
+        console.log("stream", stream);
+        setLocalStream(stream);
+        localVideoRef.current.srcObject = stream;
 
-        // Add detailed error handling for getUserMedia
-        try {
-          const videoTrack = await createLocalVideoTrack();
-          console.log('Local video track created:', videoTrack);
-          
-          const response = await fetch(
-            `http://localhost:5000/user/token?identity=${identity}&type=video`
-          );
-          const data = await response.json();
-          console.log('Received token:', data);
+        // Listen for signaling messages from serve
+        socket.on("message", (message) => {
+          if (message.type === "offer" && !peerRef.current) {
+            console.log("offer", message);
+            const newPeer = new SimplePeer({
+              initiator: false,
+              trickle: false,
+              stream: stream, // Add local stream to the peer
+            });
+            peerRef.current = newPeer;
 
-          const room = await connect(data.data, {
-            name: roomName,
-            tracks: [videoTrack],
-          });
-          console.log('Connected to room:', room);
-
-          const videoContainer = document.getElementById("video-container");
-
-          // Attach local participant's video track
-          room.localParticipant.videoTracks.forEach((trackPublication) => {
-            videoContainer.appendChild(trackPublication.track.attach());
-          });
-
-          // Handle remote participants
-          room.participants.forEach((participant) => {
-            participant.tracks.forEach((trackPublication) => {
-              if (trackPublication.track.kind === "video") {
-                videoContainer.appendChild(trackPublication.track.attach());
-              }
+            // Set remote description and answer
+            newPeer.signal(message.sdp);
+            console.log("signal peered");
+            newPeer.on("signal", (answer) => {
+              console.log("signal answered");
+              socket.emit("message", {
+                type: "answer",
+                sdp: answer,
+                friendroomId: "123456",
+              });
+              console.log("answer emitted");
             });
 
-            participant.on("trackSubscribed", (track) => {
-              if (track.kind === "video") {
-                videoContainer.appendChild(track.attach());
-              }
+            // Handle incoming stream
+            newPeer.on("stream", (remoteStream) => {
+              console.log("remote stream received", remoteStream);
+              console.log("remote", remoteStream);
+              setRemoteStream(remoteStream);
+
+              remoteVideoRef.current.srcObject = remoteStream;
             });
+          } else if (message.type === "answer" && peerRef.current) {
+            console.log("answer", message);
+            peerRef.current.signal(message.sdp);
+          } else if (message.type === "candidate" && peerRef.current) {
+            console.log("candidate", message);
+            peerRef.current.signal(message.candidate);
+          }
+        });
+      })
+      .catch((error) => console.error("Error accessing media devices:", error));
 
-            participant.on("trackUnsubscribed", (track) => {
-              if (track.kind === "video") {
-                track.detach().forEach((element) => element.remove());
-              }
-            });
-          });
+    // Clean up on component unmount
+    // return () => {
+    //   socket.disconnect();
+    //   if (peerRef.current) peerRef.current.destroy();
+    //   if (localStream) localStream.getTracks().forEach(track => track.stop());
+    // };
+  }, []);
 
-          // Handle new participant connections
-          room.on("participantConnected", (participant) => {
-            participant.tracks.forEach((trackPublication) => {
-              if (trackPublication.track.kind === "video") {
-                videoContainer.appendChild(trackPublication.track.attach());
-              }
-            });
+  useEffect(() => {
+    if (localStream) {
+      console.log("local stream updated", localStream);
+    }
+  }, [localStream]);
 
-            participant.on("trackSubscribed", (track) => {
-              if (track.kind === "video") {
-                videoContainer.appendChild(track.attach());
-              }
-            });
+  useEffect(() => {
+    if (remoteStream) {
+      console.log("remote stream updated", remoteStream);
+    }
+  }, [remoteStream]);
 
-            participant.on("trackUnsubscribed", (track) => {
-              if (track.kind === "video") {
-                track.detach().forEach((element) => element.remove());
-              }
-            });
-          });
+  // Function to start a Audiocall
+  const startCall = () => {
+    console.log("start calling");
+    const newPeer = new SimplePeer({
+      initiator: true,
+      trickle: false,
+      stream: localStream,
+    });
+    console.log("newpeer", newPeer);
+    peerRef.current = newPeer;
 
-          // Clean up when the room is disconnected
-          room.on("disconnected", () => {
-            videoContainer.innerHTML = "";
-          });
-        } catch (mediaError) {
-          console.error("Error creating local video track:", mediaError);
-          alert("Error creating local video track: " + mediaError.message);
-          return; // Early exit if media track creation fails
-        }
-      } catch (error) {
-        console.error("Error starting video call:", error);
-        alert("Error starting video call: " + error.message);
-      }
-    };
+    // Send signaling message for offer
+    newPeer.on("signal", (offer) => {
+      socket.emit("message", {
+        type: "offer",
+        sdp: offer,
+        friendroomId: "123456",
+      });
+    });
 
-    startVideoCall();
-  }, [identity, roomName]);
+    // // Handle incoming stream
+    newPeer.on("stream", (remoteStream) => {
+      console.log("remote stream received 1");
+      console.log("remote stream received 2");
+      setRemoteStream(remoteStream);
+      remoteVideoRef.current.srcObject = remoteStream;
+    });
+
+    // Handle ICE candidate messages
+    newPeer.on("iceCandidate", (candidate) => {
+      socket.emit("message", {
+        type: "candidate",
+        candidate: candidate,
+      });
+    });
+
+    // Handle connection state changes
+    newPeer.on("connect", () => {
+      console.log("Connected to remote peer");
+    });
+
+    newPeer.on("close", () => {
+      console.log("Connection closed");
+      //   setPeer(null);
+    });
+  };
 
   return (
-    <div>
-      <h2>Video Call</h2>
-      <div
-        id="video-container"
-        style={{ display: "flex", flexDirection: "row" }}
-      ></div>
+    <div className="App">
+      <h1>WebRTC Audio Call</h1>
+      <div className="video-container">
+        <div className="local-video">
+          <h1>me</h1>
+          <video ref={localVideoRef} autoPlay playsInline muted></video>
+        </div>
+        <div className="remote-video">
+          <h1>visitor</h1>
+          <video ref={remoteVideoRef} autoPlay playsInline></video>
+        </div>
+      </div>
+      <button onClick={startCall}>Start Call</button>
     </div>
   );
 }
 
-export default VideoCall;
+export default Videocall;

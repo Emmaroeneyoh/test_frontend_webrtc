@@ -2,24 +2,29 @@ import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import SimplePeer from "simple-peer";
 
+// const socket = io("http://localhost:5000"); // Replace with your server URL
 const socket = io("https://webrtcback-a2ddffdeea05.herokuapp.com"); // Replace with your server URL
 
 function Call() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [visitor, setvisitor] = useState('');
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
+
   useEffect(() => {
     console.log("socket worked");
     // Get user media (audio only for this example)
-    socket.emit("join");
+    const calldata = {roomid : "123456"}
+    socket.emit("join" , calldata);
     socket.on("user-connected", (data) => {
+      setvisitor('client has joined')
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true, video: true })
+      .getUserMedia({ audio: true,})
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
@@ -141,6 +146,7 @@ function Call() {
       <div className="video-container">
         <div className="local-video">
           <h1>me</h1>
+          <h1>{visitor}</h1>
           <video ref={localVideoRef} autoPlay playsInline muted></video>
         </div>
         <div className="remote-video">

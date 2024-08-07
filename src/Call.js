@@ -25,7 +25,7 @@ function Call() {
         setLocalStream(stream);
         localVideoRef.current.srcObject = stream;
 
-        // Listen for signaling messages from server
+        // Listen for signaling messages from serve
         socket.on("message", (message) => {
           if (message.type === "offer" && !peerRef.current) {
             console.log("offer", message);

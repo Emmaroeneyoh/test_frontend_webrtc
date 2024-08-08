@@ -8,23 +8,22 @@ const socket = io("https://webrtcback-a2ddffdeea05.herokuapp.com"); // Replace w
 function Call() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [visitor, setvisitor] = useState('');
+  const [visitor, setvisitor] = useState("");
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
-
   useEffect(() => {
     console.log("socket worked");
     // Get user media (audio only for this example)
-    const calldata = {roomid : "123456"}
-    socket.emit("join" , calldata);
+    const calldata = { roomid: "123456" };
+    socket.emit("join", calldata);
     socket.on("user-connected", (data) => {
-      setvisitor('client has joined')
+      setvisitor("client has joined");
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true,})
+      .getUserMedia({ audio: true , video : true })
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
@@ -140,6 +139,23 @@ function Call() {
     });
   };
 
+  const endCall = () => {
+    console.log("Ending call");
+
+    if (peerRef.current) {
+      // peerRef.current.destroy();
+      peerRef.current = null;
+    }
+
+    if (localStream) {
+      localStream.getTracks().forEach((track) => track.stop());
+      setLocalStream(null);
+    }
+
+    setRemoteStream(null);
+    setvisitor("");
+  };
+
   return (
     <div className="App">
       <h1>WebRTC Audio Call</h1>
@@ -155,6 +171,7 @@ function Call() {
         </div>
       </div>
       <button onClick={startCall}>Start Call</button>
+      {/* <button onClick={endCall}>end Call</button> */}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import io from "socket.io-client";
 import SimplePeer from "simple-peer";
 
 // const socket = io("http://localhost:5000"); // Replace with your server URL
-const socket = io("https://webrtcback-a2ddffdeea05.herokuapp.com"); // Replace with your server URL
+const socket = io("https://webrtccalltest-fce07ae94d2f.herokuapp.com/"); // Replace with your server URL
 
 function Call() {
   const [localStream, setLocalStream] = useState(null);

@@ -14,7 +14,7 @@ function Call() {
   const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    console.log("socket worked");
+    console.log("socket new one");
     // Get user media (audio only for this example)
     const calldata = { roomid: "123456" };
     socket.emit("join", calldata);
@@ -23,7 +23,7 @@ function Call() {
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true  })
+      .getUserMedia({ audio: true  , video:false})
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
@@ -163,7 +163,7 @@ function Call() {
         <div className="local-video">
           <h1>me</h1>
           <h1>{visitor}</h1>
-          <video ref={localVideoRef} autoPlay playsInline ></video>
+          <video ref={localVideoRef} autoPlay playsInline muted ></video>
         </div>
         <div className="remote-video">
           <h1>visitor</h1>

@@ -163,7 +163,7 @@ function Call() {
         <div className="local-video">
           <h1>me</h1>
           <h1>{visitor}</h1>
-          <video ref={localVideoRef} autoPlay playsInline muted></video>
+          <video ref={localVideoRef} autoPlay playsInline ></video>
         </div>
         <div className="remote-video">
           <h1>visitor</h1>

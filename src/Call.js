@@ -15,7 +15,7 @@ function Call() {
 
 
   useEffect(() => {
-    console.log("socket old commit");
+    console.log("socket old commit 2");
     // Get user media (audio only for this example)
     const calldata = {roomid : "123456"}
     socket.emit("join" , calldata);
@@ -24,7 +24,7 @@ function Call() {
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true,})
+      .getUserMedia({ audio: true, video:true})
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);

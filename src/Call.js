@@ -12,7 +12,7 @@ function Call() {
   const remoteVideoRef = useRef(null);
 
   useEffect(() => {
-    console.log("socket worked");
+    console.log("socket worked 1");
     // Get user media (audio only for this example)
     socket.emit("join");
     socket.on("user-connected", (data) => {

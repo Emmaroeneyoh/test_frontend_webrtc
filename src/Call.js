@@ -23,7 +23,7 @@ function Call() {
       console.log("user joined", data);
     });
     navigator.mediaDevices
-      .getUserMedia({ audio: true , video : true })
+      .getUserMedia({ audio: true  })
       .then((stream) => {
         console.log("stream", stream);
         setLocalStream(stream);
